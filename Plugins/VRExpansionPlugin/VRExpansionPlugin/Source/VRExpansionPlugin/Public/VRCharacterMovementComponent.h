@@ -173,6 +173,8 @@ public:
 	 */
 	UVRCharacterMovementComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	virtual void OnRegister() override;
+
 	float ImmersionDepth() const override;
 	bool CanCrouch();
 
@@ -275,7 +277,8 @@ public:
 
 	// Making sure that impulses are correct
 	virtual void CapsuleTouched(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult) override;
-
+	// #TODO: Temp fix, they implemented the new physics forces wrong in 5.1
+	virtual void ApplyImpactPhysicsForces(const FHitResult& Impact, const FVector& ImpactAcceleration, const FVector& ImpactVelocity) override;
 	virtual void StoreSetTrackingPaused(bool bNewTrackingPaused) override;
 };
 

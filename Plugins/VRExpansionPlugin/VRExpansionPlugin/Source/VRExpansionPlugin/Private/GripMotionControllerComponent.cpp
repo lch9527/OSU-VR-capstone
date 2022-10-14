@@ -65,6 +65,54 @@ namespace {
 
 } // anonymous namespace
 
+namespace GripUEMotionController {
+	// A scoped lock that must be explicitly locked and will unlock upon destruction if locked.
+	// Convenient if you only sometimes want to lock and the scopes are complicated.
+	class FScopeLockOptional
+	{
+	public:
+		FScopeLockOptional()
+		{
+		}
+
+		void Lock(FCriticalSection* InSynchObject)
+		{
+			SynchObject = InSynchObject;
+			SynchObject->Lock();
+		}
+
+		/** Destructor that performs a release on the synchronization object. */
+		~FScopeLockOptional()
+		{
+			Unlock();
+		}
+
+		void Unlock()
+		{
+			if (SynchObject)
+			{
+				SynchObject->Unlock();
+				SynchObject = nullptr;
+			}
+		}
+
+	private:
+		/** Copy constructor( hidden on purpose). */
+		FScopeLockOptional(const FScopeLockOptional& InScopeLock);
+
+		/** Assignment operator (hidden on purpose). */
+		FScopeLockOptional& operator=(FScopeLockOptional& InScopeLock)
+		{
+			return *this;
+		}
+
+	private:
+
+		// Holds the synchronization object to aggregate and scope manage.
+		FCriticalSection* SynchObject = nullptr;
+	};
+}
+
   // CVars
 namespace GripMotionControllerCvars
 {
@@ -1982,16 +2030,26 @@ bool UGripMotionControllerComponent::DropGrip_Implementation(const FBPActorGripI
 	}
 	else
 	{
-
-		// Had to move in front of deletion to properly set velocity
-
-		/*if (((bWasLocalGrip && !IsLocallyControlled()) ||
-			Grip.GripMovementReplicationSetting == EGripMovementReplicationSettings::ForceClientSideMovement) &&
-			(!OptionalLinearVelocity.IsNearlyZero() || !OptionalAngularVelocity.IsNearlyZero())*/
-		if (!OptionalLinearVelocity.IsNearlyZero() || !OptionalAngularVelocity.IsNearlyZero())
+		if (bSimulate && (!OptionalLinearVelocity.IsNearlyZero() || !OptionalAngularVelocity.IsNearlyZero()))
 		{
-			PrimComp->SetPhysicsLinearVelocity(OptionalLinearVelocity);
-			PrimComp->SetPhysicsAngularVelocityInDegrees(OptionalAngularVelocity);
+			if (Grip.GripCollisionType != EGripCollisionType::EventsOnly)
+			{
+				// Need to set simulation in all of these cases, including if it isn't the root component (simulation isn't replicated on non roots)
+				if (!Grip.AdvancedGripSettings.PhysicsSettings.bUsePhysicsSettings || !Grip.AdvancedGripSettings.PhysicsSettings.bSkipSettingSimulating)
+				{
+					if (PrimComp->IsSimulatingPhysics() != bSimulate)
+					{
+						PrimComp->SetSimulatePhysics(bSimulate);
+					}
+				}
+			}
+
+			// Had to move in front of deletion to properly set velocity
+			if (PrimComp->IsSimulatingPhysics())
+			{
+				PrimComp->SetPhysicsLinearVelocity(OptionalLinearVelocity);
+				PrimComp->SetPhysicsAngularVelocityInDegrees(OptionalAngularVelocity);
+			}
 		}
 	}
 
@@ -5344,8 +5402,8 @@ void UGripMotionControllerComponent::HandleGripArray(TArray<FBPActorGripInformat
 						{
 							FVector move = NewPosition - OriginalPosition;
 
-							// ComponentSweepMulti does nothing if moving < KINDA_SMALL_NUMBER in distance, so it's important to not try to sweep distances smaller than that. 
-							const float MinMovementDistSq = (FMath::Square(4.f*KINDA_SMALL_NUMBER));
+							// ComponentSweepMulti does nothing if moving < UE_KINDA_SMALL_NUMBER in distance, so it's important to not try to sweep distances smaller than that. 
+							const float MinMovementDistSq = (FMath::Square(4.f*UE_KINDA_SMALL_NUMBER));
 
 							if (bUseWithoutTracking || move.SizeSquared() > MinMovementDistSq || NewOrientation != OriginalOrientation)
 							{
@@ -5682,9 +5740,12 @@ bool UGripMotionControllerComponent::DestroyPhysicsHandle(const FBPActorGripInfo
 					rBodyInstance->UpdateMassProperties();
 				}
 
-				// Offset the linear velocity by the new COM position and set it
-				vel += FVector::CrossProduct(aVel, rBodyInstance->GetCOMPosition() - originalCOM);
-				rBodyInstance->SetLinearVelocity(vel, false);
+				if (rBodyInstance->IsInstanceSimulatingPhysics())
+				{
+					// Offset the linear velocity by the new COM position and set it
+					vel += FVector::CrossProduct(aVel, rBodyInstance->GetCOMPosition() - originalCOM);
+					rBodyInstance->SetLinearVelocity(vel, false);
+				}
 			}
 		}
 	}
@@ -6518,7 +6579,7 @@ bool UGripMotionControllerComponent::CheckComponentWithSweep(UPrimitiveComponent
 		if (bHadBlockingHit)
 		{
 			int32 BlockingHitIndex = INDEX_NONE;
-			float BlockingHitNormalDotDelta = BIG_NUMBER;
+			float BlockingHitNormalDotDelta = UE_BIG_NUMBER;
 			for (int32 HitIdx = 0; HitIdx < Hits.Num(); HitIdx++)
 			{
 				const FHitResult& TestHit = Hits[HitIdx];
@@ -6663,6 +6724,21 @@ void UGripMotionControllerComponent::ApplyTrackingParameters(FVector& OriginalPo
 	}
 }
 
+void UGripMotionControllerComponent::OnModularFeatureUnregistered(const FName& Type, class IModularFeature* ModularFeature)
+{
+	FScopeLock Lock(&GripPolledMotionControllerMutex);
+
+	if (ModularFeature == GripPolledMotionController_GameThread)
+	{
+		GripPolledMotionController_GameThread = nullptr;
+	}
+	if (ModularFeature == GripPolledMotionController_RenderThread)
+	{
+		GripPolledMotionController_RenderThread = nullptr;
+	}
+}
+
+
 //=============================================================================
 bool UGripMotionControllerComponent::GripPollControllerState(FVector& Position, FRotator& Orientation , float WorldToMetersScale)
 {
@@ -6672,8 +6748,35 @@ bool UGripMotionControllerComponent::GripPollControllerState(FVector& Position, 
 
 	if (bHasAuthority)
 	{
-		// New iteration and retrieval for 4.12
-		TArray<IMotionController*> MotionControllers = IModularFeatures::Get().GetModularFeatureImplementations<IMotionController>(IMotionController::GetModularFeatureName());
+		GripUEMotionController::FScopeLockOptional LockOptional;
+
+		TArray<IMotionController*> MotionControllers;
+		if (IsInGameThread())
+		{
+			MotionControllers = IModularFeatures::Get().GetModularFeatureImplementations<IMotionController>(IMotionController::GetModularFeatureName());
+			{
+				FScopeLock Lock(&GripPolledMotionControllerMutex);
+				GripPolledMotionController_GameThread = nullptr;
+			}
+		}
+		else if (IsInRenderingThread())
+		{
+			LockOptional.Lock(&GripPolledMotionControllerMutex);
+			if (GripPolledMotionController_RenderThread != nullptr)
+			{
+				MotionControllers.Add(GripPolledMotionController_RenderThread);
+			}
+		}
+		else
+		{
+			// If we are in some other thread we can't use the game thread code, because the ModularFeature access isn't threadsafe.
+			// The render thread code might work, or not.  
+			// Let's do the fully safe locking version, and assert because this case is not expected.
+			checkNoEntry();
+			IModularFeatures::FScopedLockModularFeatureList FeatureListLock;
+			MotionControllers = IModularFeatures::Get().GetModularFeatureImplementations<IMotionController>(IMotionController::GetModularFeatureName());
+		}
+
 		for (auto MotionController : MotionControllers)
 		{
 			if (MotionController == nullptr)
@@ -6681,18 +6784,16 @@ bool UGripMotionControllerComponent::GripPollControllerState(FVector& Position, 
 				continue;
 			}
 
-/*#if !PLATFORM_PS4
-				if (bIsInGameThread)
-				{
-					CurrentTrackingStatus = MotionController->GetControllerTrackingStatus(PlayerIndex, MotionSource);
-					if (CurrentTrackingStatus == ETrackingStatus::NotTracked)
-						continue;
-				}			
-#endif*/
+			if (bIsInGameThread)
+			{
+				CurrentTrackingStatus = MotionController->GetControllerTrackingStatus(PlayerIndex, MotionSource);
+				if (CurrentTrackingStatus == ETrackingStatus::NotTracked)
+					continue;
+			}
 
 			if (MotionController->GetControllerOrientationAndPosition(PlayerIndex, MotionSource, Orientation, Position, WorldToMetersScale))
 			{
-/*#if PLATFORM_PS4
+				/*#if PLATFORM_PS4
 				// Moving this in here to work around a PSVR module bug
 				if (bIsInGameThread)
 				{
@@ -6700,7 +6801,8 @@ bool UGripMotionControllerComponent::GripPollControllerState(FVector& Position, 
 					if (CurrentTrackingStatus == ETrackingStatus::NotTracked)
 						continue;
 				}
-#endif*/
+				#endif*/
+
 				if (HasTrackingParameters())
 				{
 					ApplyTrackingParameters(Position, bIsInGameThread);
@@ -6728,16 +6830,22 @@ bool UGripMotionControllerComponent::GripPollControllerState(FVector& Position, 
 					InUseMotionController = MotionController;
 					OnMotionControllerUpdated();
 					InUseMotionController = nullptr;
+
+					{
+						FScopeLock Lock(&GripPolledMotionControllerMutex);
+						GripPolledMotionController_GameThread = MotionController;  // We only want a render thread update from the motion controller we polled on the game thread.
+					}
 				}
 							
 				return true;
 			}
-/*#if PLATFORM_PS4
+
+			/*#if PLATFORM_PS4
 			else if (bIsInGameThread)
 			{
 				CurrentTrackingStatus = MotionController->GetControllerTrackingStatus(PlayerIndex, MotionSource);
 			}
-#endif*/
+			#endif*/
 		}
 
 		// #NOTE: This was adding in 4.20, I presume to allow for HMDs as tracking sources for mixed reality.
@@ -6777,7 +6885,7 @@ UGripMotionControllerComponent::FGripViewExtension::FGripViewExtension(const FAu
 }
 
 
-void UGripMotionControllerComponent::FGripViewExtension::PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily)
+void UGripMotionControllerComponent::FGripViewExtension::PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily)
 {
 	FTransform OldTransform;
 	FTransform NewTransform;
@@ -6787,6 +6895,11 @@ void UGripMotionControllerComponent::FGripViewExtension::PreRenderViewFamily_Ren
 
 		if (!MotionControllerComponent)
 			return;
+
+		{
+			FScopeLock Lock(&MotionControllerComponent->GripPolledMotionControllerMutex);
+			MotionControllerComponent->GripPolledMotionController_RenderThread = MotionControllerComponent->GripPolledMotionController_GameThread;
+		}
 
 		// Find a view that is associated with this player.
 		float WorldToMetersScale = -1.0f;
