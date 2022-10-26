@@ -65,6 +65,14 @@
 				"Win64",
 				"Android"
 			]
+		},
+		{
+			"Name": "PixelStreaming",
+			"Enabled": true
+		},
+		{
+			"Name": "PixelStreamingPlayer",
+			"Enabled": true
 		}
 	],
 	"TargetPlatforms": [

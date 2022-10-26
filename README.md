@@ -2,8 +2,8 @@
 
 Current compatible versions for template: Latest Engine Version (Template is not kept to as many compatible versions as the plugin itself).
 
-* Right click on Capstone.uproject and switch to [5.1]!!! engine version.
-* Right click again and select "Generate Visual Studio Files"
+* Right click on VRExpPluginExample.uproject and switch to your preferred (compatible) engine version.
+* If project files did not automatically generate after switching, right click again and select "Generate Visual Studio Files"
 * Open Solution and build - Or download the pre-built binary package from the forum thread for the engine version and place into the plugins directory.
 * Run
 
