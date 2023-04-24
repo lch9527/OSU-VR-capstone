@@ -4,6 +4,7 @@ binaries/
 deriveddatacache/
 .vs/
 build/
+Content/Modle
 intermediate/
 PACKPLUGIN/
 COMPPLUGIN/
