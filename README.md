@@ -8,4 +8,5 @@ Current compatible versions for template: Latest Engine Version (Template is not
 * Run
 
 You need to have visual studio installed and follow the UE4 setup guide for it: https://docs.unrealengine.com/latest/INT/Programming/Development/VisualStudioSetup/
+
 Guide to build to Oculus Quest 2: https://www.youtube.com/watch?v=nixc8NF_97s
