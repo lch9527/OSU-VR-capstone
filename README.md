@@ -33,6 +33,8 @@ If you want to set up a different terrain, follow this guide https://docs.google
 
 This project is desgined to be built to standalone Oculus Quest 2. Here is the guide to build to Oculus Quest 2: https://www.youtube.com/watch?v=nixc8NF_97s
 
+NOTE: Our project partner and stakeholders mentioned above do not want the exact worfklow/code to recreate this project to be disclosed. Hence we will not be submitting a video.
+
 ### Credits ###
 * Dominic Hsiao
 * Li Chenghao
