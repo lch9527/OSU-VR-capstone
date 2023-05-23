@@ -3,6 +3,14 @@ This work was conducted at Oregon State University using Federal funds under awa
 
 Our Virtual Reality Wood Harvester Project involves creating a VR experience comparable to a real harvester where the user can get effective training in operating a harvester within a safe environment and with less cost. This involves creating a realistic 3D forest environment that exactly resembles a real landscape with real tree locations. This also involves creating a functional Harvester in VR that has controls that mimic the real harvester. Meaning the user can operate the harvester in order to gain experience in delimbing and cutting down trees.
 
+### Project Background ###
+Below are links the the project background, consisting of the vision statement, success measures, constraints, risk assesment, and system architecture.
+
+* Vision Statement: https://docs.google.com/document/d/1UWzTtRyXiE_IvhIWZOL9gSmZUDfOnR9ZvbPuUcxDMys/edit?usp=sharing
+* Success Measures: https://docs.google.com/document/d/13rxQuIBe3paYFFf6eKcRmX7fp1JJFYdQstu7FmFqPuo/edit?usp=share_link
+* Constraints and Risk Assesment: https://docs.google.com/document/d/1BihJmBzS8K9D2ZlFZlMQ-8h35NUMeKoR6j7siLbW0nc/edit?usp=share_link
+* System Architecture: https://drive.google.com/file/d/1oLu5wfG_SIppN9Ka5sXcR6k3V_zubZvT/view?usp=share_link
+
 ### Documentation ###
 FBX Model was not included into project due to size limit for GitHub. This can be downloaded through the Capstone Folder - https://drive.google.com/drive/folders/1PFS3VPSEXscDdQEMNmgmUcog07QUBNoX
 
