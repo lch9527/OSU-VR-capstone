@@ -1,5 +1,14 @@
 # Virtual Reality Wood Harvester Simulator #
+This work was conducted at Oregon State University using Federal funds under award #07-79-07914 from the Economic Development Administration, U.S. Department of Commerce. The statements, findings, conclusions, and recommendations are those of the authors and do not necessarily reflect the views of the Economic Development Administration or the U.S. Department of Commerce.
+
 Our Virtual Reality Wood Harvester Project involves creating a VR experience comparable to a real harvester where the user can get effective training in operating a harvester within a safe environment and with less cost. This involves creating a realistic 3D forest environment that exactly resembles a real landscape with real tree locations. This also involves creating a functional Harvester in VR that has controls that mimic the real harvester. Meaning the user can operate the harvester in order to gain experience in delimbing and cutting down trees.
+
+### Documentation ###
+FBX Model was not included into project due to size limit for GitHub. This can be downloaded through the Capstone Folder - https://drive.google.com/drive/folders/1PFS3VPSEXscDdQEMNmgmUcog07QUBNoX
+
+Documentation regarding attributes of each UI made/planning to make - https://docs.google.com/document/d/1Lw-FXbxrZazIOTHdDP3rDbIxav2emYUJSHzTLsOUiVY/edit
+
+Documentation regarding supporting documents in order to make progress - https://docs.google.com/document/d/1Hu8Jp7w-55TDG2RVOGltc1t1s5lS0IRIosxlJexJX2U/edit
 
 ### How do I get set up? ###
 
@@ -22,6 +31,7 @@ This project is desgined to be built to standalone Oculus Quest 2. Here is the g
 * Andrew Kassab
 * Kerim Semed
 * Danqing Huang
+* Arash Shahbaz Badr
 * Raffaele De Amicis
 
 ### License ###
